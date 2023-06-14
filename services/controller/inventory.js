@@ -1,5 +1,6 @@
 const grpc = require('@grpc/grpc-js');
 const protoLoader = require('@grpc/proto-loader');
+const products = require('./products.json');
 
 const packageDefinition = protoLoader.loadSync('proto/inventory.proto', {
     keepCase: true,
@@ -8,7 +9,27 @@ const packageDefinition = protoLoader.loadSync('proto/inventory.proto', {
     arrays: true,
 });
 
-const InventoryService = grpc.loadPackageDefinition(packageDefinition).InventoryService;
-const client = new InventoryService('127.0.0.1:3002', grpc.credentials.createInsecure());
+const inventoryProto = grpc.loadPackageDefinition(packageDefinition);
 
-module.exports = client;
+const server = new grpc.Server();
+
+// implementa os métodos do InventoryService
+server.addService(inventoryProto.InventoryService.service, {
+    SearchProductByID: (payload, callback) => {
+        callback(
+            null,
+            products.find((product) => product.id == payload.request.id)
+        );
+    },
+
+    searchAllProducts: (_, callback) => {
+        callback(null, {
+            products: products,
+        });
+    },
+});
+
+server.bindAsync('127.0.0.1:3002', grpc.ServerCredentials.createInsecure(), () => {
+    console.log('Inventory Service running at http://127.0.0.1:3002');
+    server.start();
+});
